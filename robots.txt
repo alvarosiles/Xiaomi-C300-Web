@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://alvarosiles.github.io/Xiaomi-C300-Web/sitemap.xml

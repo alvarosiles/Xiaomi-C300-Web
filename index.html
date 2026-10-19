@@ -8,7 +8,11 @@
   <meta name="author" content="Alvaro Siles Estrada">
   <meta property="og:title" content="Xiaomi C300 Web · Caso de estudio">
   <meta property="og:description" content="Integración de una cámara IoT cerrada con el navegador: arquitectura, decisiones técnicas y compromisos.">
-  <meta property="og:image" content="assets/img/02-funcionalidad-principal.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://alvarosiles.github.io/Xiaomi-C300-Web/">
+  <meta property="og:image" content="https://alvarosiles.github.io/Xiaomi-C300-Web/assets/img/02-funcionalidad-principal.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://alvarosiles.github.io/Xiaomi-C300-Web/">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='white'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,6 +161,9 @@
 
     footer { border-top: 1px solid var(--border); padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
     footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+    footer .foot-nav { display: flex; gap: 18px; flex-wrap: wrap; }
+    footer .foot-nav a { color: var(--muted); }
+    footer .credit { flex-basis: 100%; font-size: 12px; color: var(--faint); }
 
     @media (max-width: 900px) {
       .sec-head { grid-template-columns: 1fr; gap: 6px; }
@@ -499,7 +506,12 @@
   <footer>
     <div class="wrap">
       <div>© 2026 Alvaro Siles Estrada · Licencia MIT</div>
-      <div>Imagen de demostración: “Work &amp; Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).</div>
+      <nav class="foot-nav" aria-label="Legal">
+        <a href="privacidad.html">Privacidad</a>
+        <a href="terminos.html">Términos</a>
+        <a href="https://github.com/alvarosiles/xiaomi-c300-web-source">Código fuente</a>
+      </nav>
+      <div class="credit">Imagen de demostración: “Work &amp; Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).</div>
     </div>
   </footer>
 
