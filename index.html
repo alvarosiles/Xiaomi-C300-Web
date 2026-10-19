@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xiaomi C300 Web · Caso de estudio</title>
+  <meta name="description" content="Caso de estudio de ingeniería: visor web en tiempo real para la cámara Xiaomi C300. Node.js, Express, go2rtc, WebSocket y MSE.">
+  <meta name="author" content="Alvaro Siles Estrada">
+  <meta property="og:title" content="Xiaomi C300 Web · Caso de estudio">
+  <meta property="og:description" content="Integración de una cámara IoT cerrada con el navegador: arquitectura, decisiones técnicas y compromisos.">
+  <meta property="og:image" content="assets/img/02-funcionalidad-principal.png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='2.5' fill='white'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #ffffff; --surface-2: #f1f3f6;
+      --text: #0f1419; --muted: #5b6573; --faint: #8a94a3;
+      --border: #e2e6ec; --accent: #1d4ed8; --accent-soft: #e7eeff;
+      --ok: #15803d; --ok-soft: #e6f6ec; --warn: #b45309; --warn-soft: #fdf3e2;
+      --risk: #b91c1c; --risk-soft: #fdecec;
+      --shadow: 0 1px 2px rgb(15 20 25 / .04), 0 8px 24px rgb(15 20 25 / .06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0b0e13; --surface: #12161d; --surface-2: #181d26;
+        --text: #e6e9ee; --muted: #9aa3b2; --faint: #6b7483;
+        --border: #232a35; --accent: #7aa2ff; --accent-soft: #172240;
+        --ok: #4ade80; --ok-soft: #10261a; --warn: #fbbf24; --warn-soft: #2a2110;
+        --risk: #f87171; --risk-soft: #2a1414;
+        --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .35);
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0b0e13; --surface: #12161d; --surface-2: #181d26;
+      --text: #e6e9ee; --muted: #9aa3b2; --faint: #6b7483;
+      --border: #232a35; --accent: #7aa2ff; --accent-soft: #172240;
+      --ok: #4ade80; --ok-soft: #10261a; --warn: #fbbf24; --warn-soft: #2a2110;
+      --risk: #f87171; --risk-soft: #2a1414;
+      --shadow: 0 1px 2px rgb(0 0 0 / .3), 0 8px 24px rgb(0 0 0 / .35);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.65 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, .mono { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: .86em; }
+    code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+    /* Header */
+    .top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: saturate(160%) blur(10px); border-bottom: 1px solid var(--border); }
+    .top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); white-space: nowrap; }
+    .logo i { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+    .logo i::after { content: ""; width: 10px; height: 10px; border: 2.5px solid #fff; border-radius: 50%; }
+    .top nav { display: flex; gap: 20px; flex: 1; overflow-x: auto; font-size: 14px; }
+    .top nav a { color: var(--muted); white-space: nowrap; }
+    .top nav a:hover { color: var(--text); text-decoration: none; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .btn:hover { border-color: var(--faint); text-decoration: none; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    :root[data-theme="dark"] .btn.primary { color: #0b0e13; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0b0e13; } }
+
+    /* Hero */
+    .hero { padding: 72px 0 48px; }
+    .kicker { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; }
+    h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.08; letter-spacing: -.025em; margin: 18px 0 18px; max-width: 900px; }
+    .lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 760px; margin: 0 0 28px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 40px; }
+    .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); overflow: hidden; }
+    .fact { padding: 18px 20px; border-right: 1px solid var(--border); }
+    .fact:last-child { border-right: 0; }
+    .fact small { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); font-weight: 600; }
+    .fact b { font-size: 16px; font-weight: 600; }
+
+    .frame { margin: 40px 0 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow); background: var(--surface); }
+    .frame .bar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+    .frame .bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+    .frame .bar em { margin-left: 10px; font-style: normal; font-size: 12px; color: var(--faint); font-family: "JetBrains Mono", monospace; }
+    .frame img { display: block; width: 100%; height: auto; }
+    .frame figcaption { font-size: 13px; color: var(--muted); padding: 10px 16px; border-top: 1px solid var(--border); }
+
+    /* Sections */
+    section { padding: 72px 0; border-top: 1px solid var(--border); }
+    .sec-head { display: grid; grid-template-columns: 220px 1fr; gap: 32px; margin-bottom: 36px; }
+    .sec-num { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--accent); padding-top: 8px; }
+    h2 { font-size: clamp(26px, 3vw, 34px); letter-spacing: -.02em; line-height: 1.2; margin: 0 0 10px; }
+    .sec-head p { margin: 0; color: var(--muted); max-width: 720px; }
+    .body { margin-left: 252px; }
+    h3 { font-size: 17px; margin: 0 0 6px; letter-spacing: -.01em; }
+
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+
+    .pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; border-radius: 6px; padding: 2px 8px; margin-bottom: 10px; }
+    .pill.ok { color: var(--ok); background: var(--ok-soft); }
+    .pill.warn { color: var(--warn); background: var(--warn-soft); }
+    .pill.risk { color: var(--risk); background: var(--risk-soft); }
+
+    /* ADR */
+    .adr { display: grid; gap: 14px; }
+    .adr-item { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; display: grid; grid-template-columns: 70px 1fr; gap: 16px; }
+    .adr-id { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--faint); padding-top: 2px; }
+    .adr-item dl { display: grid; grid-template-columns: 110px 1fr; gap: 6px 16px; margin: 10px 0 0; font-size: 15px; }
+    .adr-item dt { color: var(--faint); font-size: 13px; font-weight: 600; padding-top: 2px; }
+    .adr-item dd { margin: 0; color: var(--muted); }
+
+    /* Diagram */
+    .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; overflow-x: auto; margin-bottom: 24px; }
+    .diagram svg { display: block; min-width: 760px; width: 100%; height: auto; }
+    .diagram .box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.5; }
+    .diagram .box.hl { fill: var(--accent-soft); stroke: var(--accent); }
+    .diagram .t { fill: var(--text); font: 600 14px Inter, sans-serif; }
+    .diagram .s { fill: var(--muted); font: 12px Inter, sans-serif; }
+    .diagram .m { fill: var(--faint); font: 11px "JetBrains Mono", monospace; }
+    .diagram .ln { stroke: var(--faint); stroke-width: 1.5; fill: none; }
+    .diagram .arrowhead { fill: var(--faint); }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 600; background: var(--surface-2); }
+    tr:last-child td { border-bottom: 0; }
+    .verb { font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+    .verb.get { color: var(--ok); background: var(--ok-soft); }
+    .verb.post { color: var(--accent); background: var(--accent-soft); }
+
+    /* Gallery */
+    .gallery { display: grid; gap: 28px; }
+    .gallery .frame { margin: 0; }
+
+    /* Lists */
+    .check { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .check li { position: relative; padding-left: 26px; color: var(--muted); }
+    .check li::before { content: ""; position: absolute; left: 4px; top: 10px; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+    .roadmap { counter-reset: r; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+    .roadmap li { counter-increment: r; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px 16px 64px; position: relative; color: var(--muted); }
+    .roadmap li::before { content: counter(r, decimal-leading-zero); position: absolute; left: 20px; top: 16px; font-family: "JetBrains Mono", monospace; color: var(--accent); font-weight: 500; }
+    .roadmap b { color: var(--text); font-weight: 600; }
+
+    .stack { display: grid; gap: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+    .stack-row { display: grid; grid-template-columns: 180px 1fr; border-bottom: 1px solid var(--border); }
+    .stack-row:last-child { border-bottom: 0; }
+    .stack-row > div { padding: 14px 18px; }
+    .stack-row > div:first-child { color: var(--faint); font-size: 13px; font-weight: 600; background: var(--surface-2); }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 13px; border: 1px solid var(--border); border-radius: 6px; padding: 2px 9px; background: var(--bg); }
+
+    footer { border-top: 1px solid var(--border); padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+
+    @media (max-width: 900px) {
+      .sec-head { grid-template-columns: 1fr; gap: 6px; }
+      .body { margin-left: 0; }
+      .top nav { display: none; }
+      .adr-item { grid-template-columns: 1fr; gap: 4px; }
+      .adr-item dl { grid-template-columns: 1fr; gap: 2px; }
+      .adr-item dd { margin-bottom: 8px; }
+      .stack-row { grid-template-columns: 1fr; }
+      .fact { border-right: 0; border-bottom: 1px solid var(--border); }
+      .hero { padding-top: 48px; }
+      section { padding: 56px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="logo" href="#"><i></i>Xiaomi C300 Web</a>
+      <nav aria-label="Secciones">
+        <a href="#contexto">Contexto</a>
+        <a href="#arquitectura">Arquitectura</a>
+        <a href="#decisiones">Decisiones</a>
+        <a href="#producto">Producto</a>
+        <a href="#api">API</a>
+        <a href="#seguridad">Seguridad</a>
+        <a href="#roadmap">Roadmap</a>
+      </nav>
+      <button class="btn" id="theme-btn" type="button" aria-label="Cambiar tema">◐</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <span class="kicker">Caso de estudio · Integración IoT · Streaming en tiempo real</span>
+      <h1>Llevar una cámara IoT cerrada al navegador, sin depender de la app del fabricante</h1>
+      <p class="lead">
+        La Xiaomi C300 solo se ve oficialmente desde la app Mi Home y no expone RTSP. Diseñé una plataforma web
+        por capas que desacopla el protocolo propietario de la experiencia del usuario: un backend Node.js
+        coordina un motor de streaming especializado, resuelve la IP dinámica de la cámara y entrega
+        video en vivo al navegador por WebSocket y MSE.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/alvarosiles/xiaomi-c300-web-source">Ver código fuente</a>
+        <a class="btn" href="#arquitectura">Arquitectura</a>
+        <a class="btn" href="#decisiones">Decisiones técnicas</a>
+      </div>
+      <div class="facts">
+        <div class="fact"><small>Rol</small><b>Diseño y desarrollo full stack</b></div>
+        <div class="fact"><small>Dominio</small><b>IoT · Video en tiempo real</b></div>
+        <div class="fact"><small>Stack</small><b>Node.js · Express · go2rtc</b></div>
+        <div class="fact"><small>Estado</small><b>Prototipo funcional</b></div>
+      </div>
+      <figure class="frame">
+        <div class="bar"><span></span><span></span><span></span><em>localhost:3000/#/camera/office-camera</em></div>
+        <img src="assets/img/02-funcionalidad-principal.png" alt="Visor en vivo: cámara Oficina Principal, estado online y pad de control" width="1440" height="900">
+        <figcaption>Visor en vivo: stream MSE sobre WebSocket, indicador de conexión, metadatos y pad pan/tilt. Captura con cámara de demostración.</figcaption>
+      </figure>
+    </div>
+
+    <section id="contexto">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">01 — Contexto</div>
+          <div>
+            <h2>El problema y sus restricciones</h2>
+            <p>La dificultad no era mostrar video, sino integrar un dispositivo de consumo diseñado para un ecosistema cerrado, con un comportamiento de red poco predecible.</p>
+          </div>
+        </div>
+        <div class="body grid">
+          <div class="card"><span class="pill risk">Restricción</span><h3>Protocolo propietario</h3><p>Sin RTSP nativo. El video viaja por el protocolo P2P de Xiaomi (miss/CS2) y requiere un token de la cuenta en la nube.</p></div>
+          <div class="card"><span class="pill risk">Restricción</span><h3>Direccionamiento dinámico</h3><p>El router asigna la IP por DHCP. Cada cambio dejaba el stream apuntando a una dirección muerta.</p></div>
+          <div class="card"><span class="pill risk">Restricción</span><h3>Compatibilidad del navegador</h3><p>H265 nativo, UDP sin entrega de video y WebRTC inestable con varias interfaces de red producían pantallas negras.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="arquitectura">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">02 — Arquitectura</div>
+          <div>
+            <h2>Separar el protocolo de la experiencia</h2>
+            <p>El backend no reimplementa protocolos de cámara: delega esa complejidad en go2rtc y se concentra en lo que aporta valor al usuario: registro de cámaras, API, estado, resolución de IP y proxy seguro hacia el motor.</p>
+          </div>
+        </div>
+        <div class="body">
+          <div class="diagram" role="img" aria-label="Diagrama: Navegador, Backend Express, go2rtc, Cámara C300 y Nube Xiaomi">
+            <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg">
+              <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+              <rect class="box" x="10" y="40" width="170" height="120" rx="10"/>
+              <text class="t" x="28" y="72">Navegador</text>
+              <text class="s" x="28" y="96">SPA · JavaScript</text>
+              <text class="s" x="28" y="116">Web Component</text>
+              <text class="s" x="28" y="136">video-rtc (MSE)</text>
+
+              <rect class="box hl" x="250" y="20" width="220" height="160" rx="10"/>
+              <text class="t" x="268" y="52">Backend · Express</text>
+              <text class="s" x="268" y="78">API REST /api</text>
+              <text class="s" x="268" y="98">CameraManager · VideoSource</text>
+              <text class="s" x="268" y="118">StreamGateway</text>
+              <text class="s" x="268" y="138">Proxy /streaming (HTTP + WS)</text>
+              <text class="s" x="268" y="158">Refresco de IP programado</text>
+
+              <rect class="box" x="540" y="40" width="160" height="120" rx="10"/>
+              <text class="t" x="558" y="72">go2rtc</text>
+              <text class="s" x="558" y="96">Protocolo Xiaomi</text>
+              <text class="s" x="558" y="116">Conversión MSE</text>
+              <text class="s" x="558" y="136">FFmpeg (H264)</text>
+
+              <rect class="box" x="760" y="40" width="110" height="120" rx="10"/>
+              <text class="t" x="776" y="72">C300</text>
+              <text class="s" x="776" y="96">LAN</text>
+              <text class="s" x="776" y="116">P2P · TCP</text>
+
+              <rect class="box" x="540" y="220" width="160" height="64" rx="10"/>
+              <text class="t" x="558" y="248">Nube Xiaomi</text>
+              <text class="s" x="558" y="268">Token · IP actual</text>
+
+              <path class="ln" d="M180 85 H248" marker-end="url(#ah)"/>
+              <text class="m" x="190" y="78">HTTP /api</text>
+              <path class="ln" d="M180 125 H248" marker-end="url(#ah)"/>
+              <text class="m" x="190" y="145">WS video</text>
+              <path class="ln" d="M470 100 H538" marker-end="url(#ah)"/>
+              <text class="m" x="478" y="92">REST · WS</text>
+              <path class="ln" d="M700 100 H758" marker-end="url(#ah)"/>
+              <path class="ln" d="M620 160 V218" marker-end="url(#ah)"/>
+              <text class="m" x="628" y="196">consulta IP por did</text>
+            </svg>
+          </div>
+          <div class="grid">
+            <div class="card"><h3>Strategy</h3><p><code>VideoSource</code> define el contrato. <code>XiaomiSource</code>, <code>RtspSource</code> y <code>GenericSource</code> lo implementan; sumar un fabricante no toca las rutas.</p></div>
+            <div class="card"><h3>Gateway / Adapter</h3><p><code>StreamGateway</code> encapsula el motor. Reemplazar go2rtc implica cambiar una clase, no la aplicación.</p></div>
+            <div class="card"><h3>Registry</h3><p><code>CameraManager</code> es el único punto que conoce la flota de cámaras; el resto del código opera sobre una sola.</p></div>
+            <div class="card"><h3>Inyección de dependencias</h3><p>El punto de entrada construye gateway y manager y los inyecta en los routers, lo que deja cada capa aislada y testeable.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="decisiones">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">03 — Decisiones</div>
+          <div>
+            <h2>Registro de decisiones de arquitectura</h2>
+            <p>Cada decisión responde a un problema observado en el dispositivo real, con su compromiso explícito.</p>
+          </div>
+        </div>
+        <div class="body adr">
+          <article class="adr-item">
+            <div class="adr-id">ADR-01</div>
+            <div>
+              <h3>Delegar el protocolo en un motor especializado</h3>
+              <dl>
+                <dt>Contexto</dt><dd>El protocolo P2P de Xiaomi es propietario y cambia entre firmwares.</dd>
+                <dt>Decisión</dt><dd>Usar go2rtc como motor y tratarlo como caja negra detrás de <code>StreamGateway</code>.</dd>
+                <dt>Compromiso</dt><dd>Dependencia de un proceso externo, a cambio de no mantener código de protocolo.</dd>
+              </dl>
+            </div>
+          </article>
+          <article class="adr-item">
+            <div class="adr-id">ADR-02</div>
+            <div>
+              <h3>Forzar transporte TCP</h3>
+              <dl>
+                <dt>Contexto</dt><dd>El handshake UDP se completaba, pero la cámara nunca enviaba paquetes de video.</dd>
+                <dt>Decisión</dt><dd>Configurar <code>transport=tcp</code> en la fuente del stream.</dd>
+                <dt>Compromiso</dt><dd>Algo más de latencia que UDP, a cambio de una conexión estable.</dd>
+              </dl>
+            </div>
+          </article>
+          <article class="adr-item">
+            <div class="adr-id">ADR-03</div>
+            <div>
+              <h3>MSE sobre WebSocket en lugar de WebRTC</h3>
+              <dl>
+                <dt>Contexto</dt><dd>Con varias interfaces de red activas, la negociación ICE entraba en un ciclo de conexión y desconexión.</dd>
+                <dt>Decisión</dt><dd>Fijar el reproductor en modo MSE, reutilizando el WebSocket ya abierto.</dd>
+                <dt>Compromiso</dt><dd>Latencia algo mayor que WebRTC, a cambio de no depender de ICE ni UDP.</dd>
+              </dl>
+            </div>
+          </article>
+          <article class="adr-item">
+            <div class="adr-id">ADR-04</div>
+            <div>
+              <h3>Resolver la IP por identidad, no por dirección</h3>
+              <dl>
+                <dt>Contexto</dt><dd>El DHCP mueve la cámara; el escaneo de red es frágil y costoso.</dd>
+                <dt>Decisión</dt><dd>Consultar a la nube de Xiaomi la IP actual por el <code>did</code> del dispositivo, al iniciar y cada N minutos, y reconfigurar el stream en caliente.</dd>
+                <dt>Compromiso</dt><dd>Requiere conectividad con la nube para detectar cambios de IP.</dd>
+              </dl>
+            </div>
+          </article>
+          <article class="adr-item">
+            <div class="adr-id">ADR-05</div>
+            <div>
+              <h3>Proxy del motor detrás del backend</h3>
+              <dl>
+                <dt>Contexto</dt><dd>El navegador no puede consumir el motor de otro origen sin problemas de CORS.</dd>
+                <dt>Decisión</dt><dd>Exponer go2rtc bajo <code>/streaming</code> (HTTP y WebSocket) desde el mismo origen que la app.</dd>
+                <dt>Compromiso</dt><dd>El backend pasa a estar en la ruta del video; un único punto a proteger.</dd>
+              </dl>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="producto">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">04 — Producto</div>
+          <div>
+            <h2>Qué entrega hoy</h2>
+            <p>Estado verificado en el código y en ejecución. Lo pendiente está marcado como tal.</p>
+          </div>
+        </div>
+        <div class="body">
+          <div class="grid" style="margin-bottom:40px">
+            <div class="card"><span class="pill ok">Operativo</span><h3>Video en vivo</h3><p>Probado con una C300 real a través de todo el pipeline.</p></div>
+            <div class="card"><span class="pill ok">Operativo</span><h3>Resolución automática de IP</h3><p>Reconfiguración del stream sin reiniciar servicios.</p></div>
+            <div class="card"><span class="pill ok">Operativo</span><h3>Monitoreo de estado</h3><p>Online/offline cada 5 s y health check del backend y del motor.</p></div>
+            <div class="card"><span class="pill ok">Operativo</span><h3>Dashboard y temas</h3><p>Panel de cámaras y modo claro/oscuro persistente.</p></div>
+            <div class="card"><span class="pill warn">Pendiente</span><h3>Pan / tilt</h3><p>UI y endpoint listos; falta el comando de motor por ingeniería inversa.</p></div>
+            <div class="card"><span class="pill warn">Pendiente</span><h3>Configuración y acceso</h3><p>Settings y autenticación con punto de extensión preparado.</p></div>
+          </div>
+          <div class="gallery">
+            <figure class="frame">
+              <div class="bar"><span></span><span></span><span></span><em>Dashboard</em></div>
+              <img src="assets/img/01-vista-principal.png" alt="Dashboard con la cámara Oficina Principal" loading="lazy" width="1440" height="900">
+              <figcaption>Dashboard con la flota de cámaras registradas.</figcaption>
+            </figure>
+            <figure class="frame">
+              <div class="bar"><span></span><span></span><span></span><em>Visor · tema oscuro</em></div>
+              <img src="assets/img/03-funcionalidad-complementaria.png" alt="Visor en tema oscuro con respuesta del control PTZ" loading="lazy" width="1440" height="900">
+              <figcaption>Tema oscuro y respuesta real del backend al usar el control pan/tilt, que todavía está pendiente.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="api">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">05 — Interfaz</div>
+          <div>
+            <h2>API REST</h2>
+            <p>Contrato pequeño y explícito. Sin base de datos: la configuración vive en archivos JSON y YAML versionables.</p>
+          </div>
+        </div>
+        <div class="body table-wrap">
+          <table>
+            <thead><tr><th>Método</th><th>Ruta</th><th>Propósito</th><th>Respuestas</th></tr></thead>
+            <tbody>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/cameras</code></td><td>Flota de cámaras con su stream resuelto</td><td class="mono">200</td></tr>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/cameras/:id</code></td><td>Detalle de una cámara</td><td class="mono">200 · 404</td></tr>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/streams/:id</code></td><td>Endpoints de video (WS, MP4, MJPEG)</td><td class="mono">200 · 404 · 502</td></tr>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/status/:id</code></td><td>Estado online/offline</td><td class="mono">200 · 404 · 502</td></tr>
+              <tr><td><span class="verb post">POST</span></td><td><code>/api/cameras/:id/move</code></td><td>Pan/tilt con dirección validada</td><td class="mono">400 · 404 · 501 · 502</td></tr>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/system/health</code></td><td>Salud del backend y del motor</td><td class="mono">200</td></tr>
+              <tr><td><span class="verb get">GET</span></td><td><code>/api/settings</code></td><td>Reservado para persistencia</td><td class="mono">501</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="stack">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">06 — Stack</div>
+          <div>
+            <h2>Tecnologías</h2>
+            <p>Elegidas por su baja fricción operativa: sin bundler, sin framework de frontend y sin base de datos.</p>
+          </div>
+        </div>
+        <div class="body stack">
+          <div class="stack-row"><div>Backend</div><div class="chips"><span class="chip">Node.js ≥ 22.15</span><span class="chip">Express 4.22</span><span class="chip">http-proxy-middleware 4.2</span><span class="chip">ES Modules</span></div></div>
+          <div class="stack-row"><div>Frontend</div><div class="chips"><span class="chip">HTML5</span><span class="chip">CSS3</span><span class="chip">JavaScript</span><span class="chip">Web Components</span><span class="chip">Router por hash</span></div></div>
+          <div class="stack-row"><div>Streaming</div><div class="chips"><span class="chip">go2rtc 1.9.14</span><span class="chip">WebSocket</span><span class="chip">Media Source Extensions</span><span class="chip">FFmpeg</span></div></div>
+          <div class="stack-row"><div>Integraciones</div><div class="chips"><span class="chip">Nube Xiaomi</span><span class="chip">Protocolo P2P miss/CS2</span></div></div>
+          <div class="stack-row"><div>Configuración</div><div class="chips"><span class="chip">Variables de entorno</span><span class="chip">JSON</span><span class="chip">YAML</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="seguridad">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">07 — Seguridad</div>
+          <div>
+            <h2>Postura de seguridad</h2>
+            <p>Diseñado para una LAN de confianza. Estos son los controles existentes y las brechas conocidas.</p>
+          </div>
+        </div>
+        <div class="body grid">
+          <div class="card">
+            <span class="pill ok">Implementado</span>
+            <ul class="check">
+              <li>Escape de HTML en los datos dinámicos de la interfaz.</li>
+              <li>Validación de entrada en el control pan/tilt.</li>
+              <li>Errores controlados (502) cuando el motor no responde.</li>
+              <li>Punto de extensión <code>requireAuth</code> en todas las rutas.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <span class="pill warn">Brechas conocidas</span>
+            <ul class="check">
+              <li>Sin autenticación: el acceso depende del perímetro de red.</li>
+              <li>API del motor de streaming sin protección propia.</li>
+              <li>Credenciales de la cuenta Xiaomi en archivos de configuración; deben salir del control de versiones.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="wrap">
+        <div class="sec-head">
+          <div class="sec-num">08 — Roadmap</div>
+          <div>
+            <h2>Próximos pasos</h2>
+            <p>Priorizados por riesgo: primero seguridad, luego funcionalidad y por último operación.</p>
+          </div>
+        </div>
+        <ol class="body roadmap">
+          <li><b>Gestión de secretos.</b> Plantillas versionadas y credenciales fuera del repositorio.</li>
+          <li><b>Autenticación.</b> Sesiones o tokens sobre el middleware existente y restricción del motor.</li>
+          <li><b>Pan/tilt.</b> Captura de tráfico de la app oficial para documentar el comando de motor.</li>
+          <li><b>Persistencia de configuración.</b> Vista Settings conectada a un almacenamiento real.</li>
+          <li><b>Calidad y despliegue.</b> Pruebas automatizadas, CI y Docker Compose (backend + motor).</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>© 2026 Alvaro Siles Estrada · Licencia MIT</div>
+      <div>Imagen de demostración: “Work &amp; Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).</div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var root = document.documentElement;
+      try { var t = localStorage.getItem('theme'); if (t) root.dataset.theme = t; } catch (e) {}
+      document.getElementById('theme-btn').addEventListener('click', function () {
+        var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        root.dataset.theme = dark ? 'light' : 'dark';
+        try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
+      });
+    })();
+  </script>
+</body>
+</html>
