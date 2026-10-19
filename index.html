@@ -63,9 +63,9 @@
     .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); white-space: nowrap; }
     .logo i { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
     .logo i::after { content: ""; width: 10px; height: 10px; border: 2.5px solid #fff; border-radius: 50%; }
-    .top nav { display: flex; gap: 20px; flex: 1; overflow-x: auto; font-size: 14px; }
-    .top nav a { color: var(--muted); white-space: nowrap; }
-    .top nav a:hover { color: var(--text); text-decoration: none; }
+    .top .wrap > nav { display: flex; gap: 20px; flex: 1; overflow-x: auto; font-size: 14px; }
+    .top .wrap > nav a { color: var(--muted); white-space: nowrap; }
+    .top .wrap > nav a:hover { color: var(--text); text-decoration: none; }
     .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 14px; font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .btn:hover { border-color: var(--faint); text-decoration: none; }
     .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -73,7 +73,7 @@
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0b0e13; } }
 
     /* Hero */
-    .hero { padding: 72px 0 48px; }
+    .hero { padding-top: 72px; padding-bottom: 48px; }
     .kicker { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 4px 12px; border-radius: 999px; }
     h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.08; letter-spacing: -.025em; margin: 18px 0 18px; max-width: 900px; }
     .lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 760px; margin: 0 0 28px; }
@@ -165,10 +165,33 @@
     footer .foot-nav a { color: var(--muted); }
     footer .credit { flex-basis: 100%; font-size: 12px; color: var(--faint); }
 
+    /* Menú móvil */
+    .top-actions { display: flex; gap: 8px; margin-left: auto; }
+    .menu-btn { display: none; }
+    .mobile-nav { border-top: 1px solid var(--border); background: var(--surface); padding: 8px 16px 12px; }
+    .mobile-nav[hidden] { display: none; }
+    .mobile-nav a { display: block; padding: 10px 4px; color: var(--text); border-bottom: 1px solid var(--border); font-size: 15px; }
+    .mobile-nav a:last-child { border-bottom: 0; }
+    .mobile-nav a:hover { text-decoration: none; color: var(--accent); }
+
+    /* Volver arriba */
+    .to-top {
+      position: fixed; right: 20px; bottom: 20px; z-index: 30; width: 44px; height: 44px;
+      display: grid; place-items: center; border-radius: 50%; font-size: 18px;
+      background: var(--accent); color: #fff; box-shadow: var(--shadow);
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .2s, transform .2s;
+    }
+    .to-top.show { opacity: 1; transform: none; pointer-events: auto; }
+    .to-top:hover { text-decoration: none; filter: brightness(1.1); }
+    :root[data-theme="dark"] .to-top { color: #0b0e13; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .to-top { color: #0b0e13; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .to-top { transition: none; } }
+
     @media (max-width: 900px) {
       .sec-head { grid-template-columns: 1fr; gap: 6px; }
       .body { margin-left: 0; }
-      .top nav { display: none; }
+      .top .wrap > nav { display: none; }
+      .menu-btn { display: inline-flex; }
       .adr-item { grid-template-columns: 1fr; gap: 4px; }
       .adr-item dl { grid-template-columns: 1fr; gap: 2px; }
       .adr-item dd { margin-bottom: 8px; }
@@ -192,9 +215,24 @@
         <a href="#seguridad">Seguridad</a>
         <a href="#roadmap">Roadmap</a>
       </nav>
-      <button class="btn" id="theme-btn" type="button" aria-label="Cambiar tema">◐</button>
+      <div class="top-actions">
+        <button class="btn" id="theme-btn" type="button" aria-label="Cambiar tema">◐</button>
+        <button class="btn menu-btn" id="menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobile-nav">☰</button>
+      </div>
     </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Secciones" hidden>
+      <a href="#contexto">Contexto</a>
+      <a href="#arquitectura">Arquitectura</a>
+      <a href="#decisiones">Decisiones</a>
+      <a href="#producto">Producto</a>
+      <a href="#api">API</a>
+      <a href="#stack">Stack</a>
+      <a href="#seguridad">Seguridad</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
   </header>
+
+  <a class="to-top" id="to-top" href="#" aria-label="Volver arriba">↑</a>
 
   <main>
     <div class="wrap hero">
@@ -207,9 +245,9 @@
         video en vivo al navegador por WebSocket y MSE.
       </p>
       <div class="actions">
-        <a class="btn primary" href="https://github.com/alvarosiles/xiaomi-c300-web-source">Ver código fuente</a>
-        <a class="btn" href="#arquitectura">Arquitectura</a>
+        <a class="btn primary" href="#arquitectura">Ver arquitectura</a>
         <a class="btn" href="#decisiones">Decisiones técnicas</a>
+        <a class="btn" href="#producto">Capturas</a>
       </div>
       <div class="facts">
         <div class="fact"><small>Rol</small><b>Diseño y desarrollo full stack</b></div>
@@ -505,11 +543,10 @@
 
   <footer>
     <div class="wrap">
-      <div>© 2026 Alvaro Siles Estrada · Licencia MIT</div>
+      <div>© 2026 Alvaro Siles Estrada · Código fuente privado</div>
       <nav class="foot-nav" aria-label="Legal">
         <a href="privacidad.html">Privacidad</a>
         <a href="terminos.html">Términos</a>
-        <a href="https://github.com/alvarosiles/xiaomi-c300-web-source">Código fuente</a>
       </nav>
       <div class="credit">Imagen de demostración: “Work &amp; Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).</div>
     </div>
@@ -524,6 +561,24 @@
         root.dataset.theme = dark ? 'light' : 'dark';
         try { localStorage.setItem('theme', root.dataset.theme); } catch (e) {}
       });
+
+      // Menú móvil: se cierra al elegir una sección o al volver a escritorio.
+      var menuBtn = document.getElementById('menu-btn');
+      var mobileNav = document.getElementById('mobile-nav');
+      function setMenu(open) {
+        mobileNav.hidden = !open;
+        menuBtn.setAttribute('aria-expanded', String(open));
+        menuBtn.textContent = open ? '✕' : '☰';
+      }
+      menuBtn.addEventListener('click', function () { setMenu(mobileNav.hidden); });
+      mobileNav.addEventListener('click', function (e) { if (e.target.closest('a')) setMenu(false); });
+      matchMedia('(min-width: 901px)').addEventListener('change', function (e) { if (e.matches) setMenu(false); });
+
+      // Botón volver arriba: aparece tras bajar una pantalla.
+      var toTop = document.getElementById('to-top');
+      function onScroll() { toTop.classList.toggle('show', window.scrollY > window.innerHeight * 0.8); }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
     })();
   </script>
 </body>

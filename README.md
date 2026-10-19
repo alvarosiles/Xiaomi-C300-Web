@@ -2,7 +2,9 @@
 
 Sitio de presentación del proyecto **xiaomi-c300-web**: una plataforma web que muestra en tiempo real el video de una cámara Xiaomi Smart Camera C300 en el navegador, sin depender de la app Mi Home.
 
-**Código fuente:** [alvarosiles/xiaomi-c300-web-source](https://github.com/alvarosiles/xiaomi-c300-web-source)
+**Sitio publicado:** [alvarosiles.github.io/Xiaomi-C300-Web](https://alvarosiles.github.io/Xiaomi-C300-Web/)
+
+> El código fuente de la aplicación es privado. Este repositorio contiene solo el sitio de presentación.
 
 ![Visor en vivo](assets/img/02-funcionalidad-principal.png)
 
@@ -93,13 +95,21 @@ Pensado para una LAN de confianza. Ya implementa escape de HTML, validación de 
 
 ```
 .
-├── index.html          # Página del caso de estudio (GitHub Pages)
+├── index.html          # Página del caso de estudio
+├── privacidad.html     # Política de privacidad
+├── terminos.html       # Términos de uso
+├── 404.html            # Página de error de GitHub Pages
+├── robots.txt          # Indicaciones para buscadores
+├── sitemap.xml         # Mapa del sitio
 ├── README.md
-└── assets/img/         # Capturas de la aplicación
+└── assets/
+    ├── css/pages.css   # Estilos de las páginas secundarias
+    ├── js/theme.js     # Tema claro/oscuro compartido
+    └── img/            # Capturas de la aplicación
 ```
 
 Para publicarlo: **Settings → Pages → Deploy from a branch → `main` / root**.
 
 ---
 
-© 2026 Alvaro Siles Estrada · MIT · Imagen de demostración: “Work & Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).
+© 2026 Alvaro Siles Estrada · Código fuente privado · [Privacidad](privacidad.html) · [Términos](terminos.html) · Imagen de demostración: “Work & Wall, espace de coworking à Neyron”, Wikimedia Commons (CC0).
